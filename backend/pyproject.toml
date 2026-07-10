@@ -14,6 +14,7 @@ dependencies = [
     "structlog>=24.1",
     "prometheus-client>=0.20",
     "redis>=5.0",
+    "uuid6>=2025.0.1",
 ]
 
 [dependency-groups]
@@ -31,6 +32,10 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/env.py" = ["E402"]
+"alembic/versions/*" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"
