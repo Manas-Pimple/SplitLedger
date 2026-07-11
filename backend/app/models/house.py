@@ -4,6 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import Enum, ForeignKey, String, UniqueConstraint, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin, UUIDv7PkMixin
@@ -38,7 +39,9 @@ class HouseMembership(UUIDv7PkMixin, TimestampMixin, Base):
         Enum(MembershipStatus, name="membership_status"),
         server_default=text("'active'"),
     )
-    away_days: Mapped[dict[str, Any]] = mapped_column(server_default=text("'[]'::jsonb"))
+    away_days: Mapped[list[dict[str, str]]] = mapped_column(
+        JSONB, server_default=text("'[]'::jsonb")
+    )
 
 
 class HouseInvite(UUIDv7PkMixin, TimestampMixin, Base):

@@ -10,8 +10,10 @@ from app.auth import router as auth_router
 from app.config import DEV_JWT_SECRET, get_settings
 from app.db import dispose_engine, get_engine
 from app.errors import install_error_handlers
+from app.houses import router as houses_router
 from app.idempotency import IdempotencyMiddleware
 from app.redis import close_redis, get_redis
+from app.split_rules import router as split_rules_router
 
 
 @asynccontextmanager
@@ -30,6 +32,8 @@ def create_app() -> FastAPI:
     app.add_middleware(IdempotencyMiddleware)
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(me_router, prefix="/api/v1")
+    app.include_router(houses_router, prefix="/api/v1")
+    app.include_router(split_rules_router, prefix="/api/v1")
 
     @app.get("/api/v1/healthz")
     async def healthz() -> JSONResponse:
