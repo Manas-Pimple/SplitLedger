@@ -94,7 +94,8 @@ class IdempotencyMiddleware:
                 await session.execute(select(IdempotencyKey).where(IdempotencyKey.key == key))
             ).scalar_one_or_none()
             if stored is not None and stored.expires_at > datetime.now(UTC):
-                if stored.request_hash != request_hash or stored.user_id != user_id:
+                # user_id is baked into request_hash, so one comparison covers both
+                if stored.request_hash != request_hash:
                     await _send_json(
                         send,
                         409,

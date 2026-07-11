@@ -2,6 +2,7 @@
 Both are deferred constraint triggers — violations surface at COMMIT."""
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -63,20 +64,12 @@ async def test_partial_share_delete_rejected(session: AsyncSession) -> None:
     )
     await session.commit()
 
-    share = await session.get(
-        ExpenseShare, (await _first_share_id(session, expense.id))
-    )
-    assert share is not None
+    share = (
+        await session.execute(
+            select(ExpenseShare).where(ExpenseShare.expense_id == expense.id).limit(1)
+        )
+    ).scalar_one()
     await session.delete(share)
     with pytest.raises(DBAPIError):
         await session.commit()
     await session.rollback()
-
-
-async def _first_share_id(session: AsyncSession, expense_id: object) -> object:
-    from sqlalchemy import select
-
-    result = await session.execute(
-        select(ExpenseShare.id).where(ExpenseShare.expense_id == expense_id).limit(1)
-    )
-    return result.scalar_one()

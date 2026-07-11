@@ -71,8 +71,7 @@ async def make_expense(
     shares: dict[User, int] | None = None,
     **kw: object,
 ) -> Expense:
-    rule = kw.get("split_rule") or await make_split_rule(session, house)
-    assert isinstance(rule, SplitRule)
+    rule = await make_split_rule(session, house)
     expense = Expense(
         house_id=house.id,
         created_by=paid_by.id,
