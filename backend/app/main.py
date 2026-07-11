@@ -7,6 +7,7 @@ from sqlalchemy import text
 
 from app.auth import me_router
 from app.auth import router as auth_router
+from app.config import DEV_JWT_SECRET, get_settings
 from app.db import dispose_engine, get_engine
 from app.errors import install_error_handlers
 from app.idempotency import IdempotencyMiddleware
@@ -15,6 +16,9 @@ from app.redis import close_redis, get_redis
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    settings = get_settings()
+    if settings.env == "production" and settings.jwt_secret == DEV_JWT_SECRET:
+        raise RuntimeError("JWT_SECRET must be set in production")
     yield
     await dispose_engine()
     await close_redis()

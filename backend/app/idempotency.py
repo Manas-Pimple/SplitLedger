@@ -108,7 +108,18 @@ class IdempotencyMiddleware:
                     )
                     return
                 if stored.response_status is not None:
-                    await _send_json(send, stored.response_status, stored.response_body)
+                    if stored.response_body is None:
+                        # empty/non-JSON original (e.g. 204 logout): no body on replay
+                        await send(
+                            {
+                                "type": "http.response.start",
+                                "status": stored.response_status,
+                                "headers": [],
+                            }
+                        )
+                        await send({"type": "http.response.body", "body": b""})
+                    else:
+                        await _send_json(send, stored.response_status, stored.response_body)
                     return
                 # ponytail: in-flight duplicate (row claimed, no response yet) —
                 # fall through and process again; last write wins on snapshot.
@@ -145,7 +156,11 @@ class IdempotencyMiddleware:
                 )
                 .on_conflict_do_update(
                     index_elements=[IdempotencyKey.key],
-                    set_={"response_status": response["status"], "response_body": response_body},
+                    set_={
+                        "response_status": response["status"],
+                        "response_body": response_body,
+                        "expires_at": datetime.now(UTC) + TTL,
+                    },
                 )
             )
             await session.commit()

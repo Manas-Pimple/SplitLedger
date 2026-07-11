@@ -5,7 +5,7 @@ from uuid import UUID
 
 import jwt
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
+from argon2.exceptions import Argon2Error, InvalidHashError
 
 from app.config import get_settings
 
@@ -22,7 +22,8 @@ def hash_password(password: str) -> str:
 def verify_password(password_hash: str, password: str) -> bool:
     try:
         return _hasher.verify(password_hash, password)
-    except VerifyMismatchError:
+    except (Argon2Error, InvalidHashError):
+        # mismatch, or malformed stored hash — either way: not verified
         return False
 
 

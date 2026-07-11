@@ -9,13 +9,15 @@ from dataclasses import dataclass
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends
+from fastapi import Depends, Header
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.errors import ApiError
 from app.models.house import HouseMembership, MembershipRole, MembershipStatus
+from app.models.user import User
+from app.security import decode_access_token
 
 
 class Permission(enum.StrEnum):
@@ -75,6 +77,21 @@ class AuthContext:
     role: MembershipRole
 
 
+async def current_principal(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    authorization: Annotated[str | None, Header()] = None,
+) -> Principal:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise ApiError(401, "UNAUTHENTICATED", "Missing bearer token")
+    user_id = decode_access_token(authorization.removeprefix("Bearer "))
+    if user_id is None:
+        raise ApiError(401, "UNAUTHENTICATED", "Invalid or expired token")
+    user = await session.get(User, user_id)
+    if user is None or not user.is_active:
+        raise ApiError(401, "UNAUTHENTICATED", "Account unavailable")
+    return Principal(user_id=user.id, is_platform_admin=user.is_platform_admin)
+
+
 async def resolve_role(
     session: AsyncSession, user_id: UUID, house_id: UUID
 ) -> MembershipRole | None:
@@ -91,8 +108,6 @@ async def resolve_role(
 
 
 def require(permission: Permission):  # type: ignore[no-untyped-def]
-    from app.auth import current_principal  # circular: auth needs errors/session too
-
     async def dep(
         house_id: UUID,
         principal: Annotated[Principal, Depends(current_principal)],
@@ -106,12 +121,9 @@ def require(permission: Permission):  # type: ignore[no-untyped-def]
     return dep
 
 
-def require_platform_admin():  # type: ignore[no-untyped-def]
-    from app.auth import current_principal
-
-    async def dep(principal: Annotated[Principal, Depends(current_principal)]) -> Principal:
-        if not principal.is_platform_admin:
-            raise ApiError(403, "PERMISSION_DENIED", "Platform admin required")
-        return principal
-
-    return dep
+async def require_platform_admin(
+    principal: Annotated[Principal, Depends(current_principal)],
+) -> Principal:
+    if not principal.is_platform_admin:
+        raise ApiError(403, "PERMISSION_DENIED", "Platform admin required")
+    return principal

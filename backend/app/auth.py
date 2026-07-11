@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -13,10 +13,9 @@ from app.errors import ApiError
 from app.models import HouseMembership, User
 from app.models.auth import RefreshToken
 from app.models.house import MembershipStatus
-from app.permissions import Principal
+from app.permissions import Principal, current_principal
 from app.security import (
     create_access_token,
-    decode_access_token,
     hash_password,
     hash_refresh_token,
     new_refresh_token,
@@ -51,21 +50,6 @@ class UserOut(BaseModel):
     email: str
     display_name: str
     is_platform_admin: bool
-
-
-async def current_principal(
-    session: Annotated[AsyncSession, Depends(get_session)],
-    authorization: Annotated[str | None, Header()] = None,
-) -> Principal:
-    if not authorization or not authorization.startswith("Bearer "):
-        raise ApiError(401, "UNAUTHENTICATED", "Missing bearer token")
-    user_id = decode_access_token(authorization.removeprefix("Bearer "))
-    if user_id is None:
-        raise ApiError(401, "UNAUTHENTICATED", "Invalid or expired token")
-    user = await session.get(User, user_id)
-    if user is None or not user.is_active:
-        raise ApiError(401, "UNAUTHENTICATED", "Account unavailable")
-    return Principal(user_id=user.id, is_platform_admin=user.is_platform_admin)
 
 
 async def _issue_tokens(session: AsyncSession, user_id: UUID) -> TokenPair:
