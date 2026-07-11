@@ -5,7 +5,11 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
+from app.auth import me_router
+from app.auth import router as auth_router
 from app.db import dispose_engine, get_engine
+from app.errors import install_error_handlers
+from app.idempotency import IdempotencyMiddleware
 from app.redis import close_redis, get_redis
 
 
@@ -18,6 +22,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     app = FastAPI(title="SplitLedger", lifespan=lifespan)
+    install_error_handlers(app)
+    app.add_middleware(IdempotencyMiddleware)
+    app.include_router(auth_router, prefix="/api/v1")
+    app.include_router(me_router, prefix="/api/v1")
 
     @app.get("/api/v1/healthz")
     async def healthz() -> JSONResponse:

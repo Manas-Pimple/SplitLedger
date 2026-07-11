@@ -30,7 +30,10 @@ class IdempotencyKey(TimestampMixin, Base):
     __tablename__ = "idempotency_keys"
 
     key: Mapped[str] = mapped_column(primary_key=True)
-    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    # Nullable per user decision (2026-07-11): API_SPEC requires the key on
+    # unauthenticated mutations (register/login) too. DATA_MODEL amendment
+    # pending in DECISIONS.md (Phase 14).
+    user_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"))
     request_hash: Mapped[str]
     response_status: Mapped[int | None]
     response_body: Mapped[dict[str, Any] | None]

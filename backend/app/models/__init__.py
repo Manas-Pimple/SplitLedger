@@ -1,3 +1,4 @@
+from app.models.auth import RefreshToken
 from app.models.base import Base
 from app.models.dispute import Dispute, DisputeComment
 from app.models.document import Document
@@ -28,6 +29,7 @@ __all__ = [
     "LedgerEvent",
     "Notification",
     "RecurringBill",
+    "RefreshToken",
     "Settlement",
     "SplitRule",
     "User",
