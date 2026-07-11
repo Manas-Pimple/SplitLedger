@@ -8,10 +8,18 @@ __pycache__/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 
 # Node
 node_modules/
 frontend/dist/
+frontend/coverage/
 
-# Env
+# Env / secrets
 .env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
