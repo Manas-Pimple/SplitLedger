@@ -40,6 +40,26 @@ _SEQ_SQL = text("""
 """)
 
 
+async def emit_events(
+    session: AsyncSession,
+    house_id: UUID,
+    events: list[tuple[str, dict[str, Any]]],
+) -> int:
+    """Allocate per-house seqs and write outbox rows for non-ledger events
+    (member.joined, member.left, ...). Returns the first seq. Caller commits."""
+    n = len(events)
+    end_seq = int(
+        (await session.execute(_SEQ_SQL, {"house_id": house_id, "n": n})).scalar_one()
+    )
+    first = end_seq - n
+    session.add_all(
+        Event(house_id=house_id, seq=first + i, type=etype, payload=payload)
+        for i, (etype, payload) in enumerate(events)
+    )
+    await session.flush()
+    return first
+
+
 async def post_ledger_event(
     session: AsyncSession,
     *,
@@ -103,9 +123,6 @@ async def post_ledger_event(
         elif bal.oldest_debt_at is None:
             bal.oldest_debt_at = now
 
-    end_seq = (
-        await session.execute(_SEQ_SQL, {"house_id": house_id, "n": 2})
-    ).scalar_one()
     snapshot = {
         "balances": [
             {
@@ -116,13 +133,9 @@ async def post_ledger_event(
             for b in balances.values()
         ]
     }
-    session.add_all(
-        [
-            Event(house_id=house_id, seq=end_seq - 2, type=event_type, payload=payload),
-            Event(house_id=house_id, seq=end_seq - 1, type="balance.updated", payload=snapshot),
-        ]
+    await emit_events(
+        session, house_id, [(event_type, payload), ("balance.updated", snapshot)]
     )
-    await session.flush()
     return event
 
 

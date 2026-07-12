@@ -16,3 +16,15 @@ OUTBOX_PUBLISH_LATENCY = Histogram(
 REDIS_PUBLISH_TOTAL = Counter(
     "redis_publish_total", "Events published to Redis", ["worker"]
 )
+REDIS_RECEIVE_TOTAL = Counter(
+    "redis_receive_total", "Events received from Redis backplane", ["worker"]
+)
+WS_CONNECTIONS_ACTIVE = Gauge(
+    "ws_connections_active", "Open WebSocket connections", ["worker"]
+)
+WS_MESSAGES_SENT_TOTAL = Counter(
+    "ws_messages_sent_total", "Messages fanned out to sockets", ["event_type"]
+)
+WS_SEND_QUEUE_DROPPED_TOTAL = Counter(
+    "ws_send_queue_dropped_total", "Slow-consumer disconnects (send queue overflow)"
+)

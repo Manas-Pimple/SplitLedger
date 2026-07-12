@@ -17,6 +17,8 @@ from app.idempotency import IdempotencyMiddleware
 from app.outbox import relay_loop
 from app.redis import close_redis, get_redis
 from app.split_rules import router as split_rules_router
+from app.ws import backplane_consumer
+from app.ws import router as ws_router
 
 
 @asynccontextmanager
@@ -25,10 +27,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if settings.env == "production" and settings.jwt_secret == DEV_JWT_SECRET:
         raise RuntimeError("JWT_SECRET must be set in production")
     stop = asyncio.Event()
-    relay = asyncio.create_task(relay_loop(get_session_factory(), get_redis(), stop))
+    background = [
+        asyncio.create_task(relay_loop(get_session_factory(), get_redis(), stop)),
+        asyncio.create_task(backplane_consumer(get_redis(), stop)),
+    ]
     yield
     stop.set()
-    await relay
+    for task in background:
+        task.cancel()
+    await asyncio.gather(*background, return_exceptions=True)
     await dispose_engine()
     await close_redis()
 
@@ -42,6 +49,7 @@ def create_app() -> FastAPI:
     app.include_router(houses_router, prefix="/api/v1")
     app.include_router(split_rules_router, prefix="/api/v1")
     app.include_router(expenses_router, prefix="/api/v1")
+    app.include_router(ws_router, prefix="/api/v1")
 
     @app.get("/api/v1/healthz")
     async def healthz() -> JSONResponse:

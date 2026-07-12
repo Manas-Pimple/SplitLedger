@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.errors import ApiError
+from app.ledger import emit_events
 from app.models import Balance, House, HouseInvite, HouseMembership, HouseSeqCounter, User
 from app.models.house import MembershipRole, MembershipStatus
 from app.permissions import (
@@ -188,6 +189,11 @@ async def accept_invite(
             )
         )
     invite.use_count += 1
+    await emit_events(
+        session,
+        invite.house_id,
+        [("member.joined", {"user_id": str(principal.user_id), "role": "member"})],
+    )
     await session.commit()
     return {"house_id": invite.house_id}
 
@@ -246,6 +252,11 @@ async def patch_member(
         ):
             raise ApiError(409, "CONFLICT", "House must keep at least one manager")
         membership.role = body.role
+        await emit_events(
+            session,
+            house_id,
+            [("member.role_changed", {"user_id": str(user_id), "role": body.role})],
+        )
     if body.away_days is not None:
         membership.away_days = [r.model_dump() for r in body.away_days]
     await session.commit()
@@ -291,4 +302,7 @@ async def leave_house(
         raise ApiError(409, "CONFLICT", "House must keep at least one manager")
 
     membership.status = MembershipStatus.left
+    await emit_events(
+        session, house_id, [("member.left", {"user_id": str(user_id)})]
+    )
     await session.commit()

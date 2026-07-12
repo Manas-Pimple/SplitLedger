@@ -38,9 +38,16 @@ def create_access_token(user_id: UUID) -> str:
 
 def decode_access_token(token: str) -> UUID | None:
     """Returns the user id, or None for any invalid/expired token."""
+    decoded = decode_token_payload(token)
+    return decoded[0] if decoded else None
+
+
+def decode_token_payload(token: str) -> tuple[UUID, float] | None:
+    """(user_id, exp unix timestamp), or None for any invalid/expired token.
+    The WebSocket gateway needs exp to drive mid-connection reauth."""
     try:
         payload = jwt.decode(token, get_settings().jwt_secret, algorithms=["HS256"])
-        return UUID(payload["sub"])
+        return UUID(payload["sub"]), float(payload["exp"])
     except (jwt.PyJWTError, KeyError, ValueError):
         return None
 
