@@ -12,6 +12,7 @@ from app.errors import ApiError
 from app.ledger import post_ledger_event
 from app.models import Balance, Settlement
 from app.models.ledger import LedgerEventKind, SettlementStatus
+from app.pagination import Page
 from app.permissions import AuthContext, Permission, require
 from app.settlement_optimizer import suggest_settlement
 
@@ -41,11 +42,6 @@ class SettlementOut(BaseModel):
     status: SettlementStatus
     method: str | None
     created_at: datetime
-
-
-class Page[T](BaseModel):
-    items: list[T]
-    next_cursor: str | None
 
 
 def _out(s: Settlement) -> SettlementOut:

@@ -14,6 +14,7 @@ from app.models import Balance, Expense, ExpenseShare, LedgerEntry, LedgerEvent
 from app.models.expense import ExpenseCategory, ExpenseStatus
 from app.models.house import MembershipRole
 from app.models.ledger import LedgerEventKind
+from app.pagination import Page
 from app.permissions import POLICY, AuthContext, Permission, require
 
 router = APIRouter(tags=["expenses"])
@@ -86,11 +87,6 @@ class LedgerEventOut(BaseModel):
     created_by: UUID | None
     created_at: datetime
     entries: list[EntryOut]
-
-
-class Page[T](BaseModel):
-    items: list[T]
-    next_cursor: str | None
 
 
 def _expense_out(e: Expense) -> ExpenseOut:

@@ -13,6 +13,7 @@ from app.ledger import emit_events, post_ledger_event, reverse_expense
 from app.models import Dispute, DisputeComment, Expense, ExpenseShare
 from app.models.dispute import DisputeStatus, ResolutionKind
 from app.models.ledger import LedgerEventKind
+from app.pagination import Page
 from app.permissions import AuthContext, Permission, require
 
 router = APIRouter(tags=["disputes"])
@@ -68,11 +69,6 @@ class DisputeOut(BaseModel):
 
 class DisputeDetailOut(DisputeOut):
     comments: list[CommentOut]
-
-
-class Page[T](BaseModel):
-    items: list[T]
-    next_cursor: str | None
 
 
 def _out(d: Dispute) -> DisputeOut:
