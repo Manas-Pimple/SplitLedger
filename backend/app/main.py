@@ -16,6 +16,7 @@ from app.houses import router as houses_router
 from app.idempotency import IdempotencyMiddleware
 from app.outbox import relay_loop
 from app.redis import close_redis, get_redis
+from app.settlements import router as settlements_router
 from app.split_rules import router as split_rules_router
 from app.ws import backplane_consumer
 from app.ws import router as ws_router
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
     app.include_router(houses_router, prefix="/api/v1")
     app.include_router(split_rules_router, prefix="/api/v1")
     app.include_router(expenses_router, prefix="/api/v1")
+    app.include_router(settlements_router, prefix="/api/v1")
     app.include_router(ws_router, prefix="/api/v1")
 
     @app.get("/api/v1/healthz")
