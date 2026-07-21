@@ -16,6 +16,7 @@ from app.expenses import router as expenses_router
 from app.houses import router as houses_router
 from app.idempotency import IdempotencyMiddleware
 from app.outbox import relay_loop
+from app.recurring_bills import router as recurring_bills_router
 from app.redis import close_redis, get_redis
 from app.settlements import router as settlements_router
 from app.split_rules import router as split_rules_router
@@ -52,6 +53,7 @@ def create_app() -> FastAPI:
     app.include_router(split_rules_router, prefix="/api/v1")
     app.include_router(expenses_router, prefix="/api/v1")
     app.include_router(disputes_router, prefix="/api/v1")
+    app.include_router(recurring_bills_router, prefix="/api/v1")
     app.include_router(settlements_router, prefix="/api/v1")
     app.include_router(ws_router, prefix="/api/v1")
 

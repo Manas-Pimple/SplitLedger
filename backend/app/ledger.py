@@ -140,7 +140,7 @@ async def post_ledger_event(
 
 
 def _expense_payload(expense: Expense, shares: dict[UUID, int]) -> dict[str, Any]:
-    return {
+    payload: dict[str, Any] = {
         "expense": {
             "id": str(expense.id),
             "house_id": str(expense.house_id),
@@ -153,6 +153,9 @@ def _expense_payload(expense: Expense, shares: dict[UUID, int]) -> dict[str, Any
         },
         "shares": {str(u): c for u, c in shares.items()},
     }
+    if expense.recurring_bill_id is not None:
+        payload["recurring_bill_id"] = str(expense.recurring_bill_id)
+    return payload
 
 
 async def create_expense(
@@ -168,8 +171,10 @@ async def create_expense(
     period: tuple[date, date] | None = None,
     document_id: UUID | None = None,
     recurring_bill_id: UUID | None = None,
+    event_type: str = "expense.created",
 ) -> Expense:
-    """Shared by the API and (Phase 9) the scheduler. Caller commits."""
+    """Shared by the API and the scheduler (recurring bills pass event_type=
+    "bill.generated" per WEBSOCKET_PROTOCOL.md §3). Caller commits."""
     rule = await session.get(SplitRule, split_rule_id)
     if rule is None or rule.house_id != house_id:
         raise ApiError(404, "NOT_FOUND", "Split rule not found")
@@ -216,7 +221,7 @@ async def create_expense(
         kind=LedgerEventKind.expense,
         ref_id=expense.id,
         entries=entries,
-        event_type="expense.created",
+        event_type=event_type,
         payload=_expense_payload(expense, shares),
         created_by=created_by,
     )
