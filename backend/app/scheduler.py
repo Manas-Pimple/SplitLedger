@@ -17,11 +17,18 @@ from typing import Any, cast
 from sqlalchemy import CursorResult, delete, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from app.config import get_settings
 from app.db import get_engine, get_session_factory
 from app.ledger import create_expense
+from app.metrics import (
+    SCHEDULER_BILLS_GENERATED_TOTAL,
+    SCHEDULER_REMINDERS_SENT_TOTAL,
+    SCHEDULER_TICK_DURATION,
+)
 from app.models import Balance, Document, House, IdempotencyKey, Notification, RecurringBill
 from app.models.document import DocumentStatus
 from app.models.recurring_bill import BillFrequency
+from app.observability import serve_metrics_server
 from app.storage import delete_object
 
 logger = logging.getLogger(__name__)
@@ -193,10 +200,16 @@ async def tick(factory: async_sessionmaker[AsyncSession], engine: AsyncEngine) -
         if not acquired:
             return False
         try:
-            await _generate_recurring_bills(factory)
-            await _send_reminders(factory)
-            await _sweep_idempotency_keys(factory)
-            await _sweep_orphan_documents(factory)
+            with SCHEDULER_TICK_DURATION.labels(job="recurring_bills").time():
+                generated = await _generate_recurring_bills(factory)
+            SCHEDULER_BILLS_GENERATED_TOTAL.inc(generated)
+            with SCHEDULER_TICK_DURATION.labels(job="reminders").time():
+                sent = await _send_reminders(factory)
+            SCHEDULER_REMINDERS_SENT_TOTAL.inc(sent)
+            with SCHEDULER_TICK_DURATION.labels(job="idempotency_sweep").time():
+                await _sweep_idempotency_keys(factory)
+            with SCHEDULER_TICK_DURATION.labels(job="orphan_document_sweep").time():
+                await _sweep_orphan_documents(factory)
         finally:
             await conn.execute(
                 text("SELECT pg_advisory_unlock(:key)"), {"key": ADVISORY_LOCK_KEY}
@@ -219,5 +232,9 @@ async def run_forever(stop: asyncio.Event | None = None) -> None:
             pass
 
 
+async def _main() -> None:
+    await asyncio.gather(run_forever(), serve_metrics_server(get_settings().metrics_port))
+
+
 if __name__ == "__main__":
-    asyncio.run(run_forever())
+    asyncio.run(_main())

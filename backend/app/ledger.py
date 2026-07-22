@@ -14,6 +14,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID
 
+import structlog
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,6 +32,8 @@ from app.models.expense import ExpenseCategory, ExpenseStatus
 from app.models.house import HouseMembership, MembershipStatus
 from app.models.ledger import LedgerEventKind
 from app.splits import compute_shares
+
+logger = structlog.get_logger(__name__)
 
 _SEQ_SQL = text("""
     INSERT INTO house_seq_counters (house_id, next_seq) VALUES (:house_id, 1 + :n)
@@ -57,6 +60,7 @@ async def emit_events(
         for i, (etype, payload) in enumerate(events)
     )
     await session.flush()
+    logger.info("ledger.events_emitted", house_id=str(house_id), event_seq=first, count=n)
     return first
 
 

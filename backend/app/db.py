@@ -1,5 +1,7 @@
 from collections.abc import AsyncIterator
+from typing import Any
 
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -8,6 +10,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from app.config import get_settings
+from app.metrics import DB_POOL_IN_USE
 
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
@@ -17,6 +20,15 @@ def get_engine() -> AsyncEngine:
     global _engine
     if _engine is None:
         _engine = create_async_engine(get_settings().database_url, pool_pre_ping=True)
+
+        @event.listens_for(_engine.sync_engine, "checkout")
+        def _on_checkout(*_: Any) -> None:
+            DB_POOL_IN_USE.inc()
+
+        @event.listens_for(_engine.sync_engine, "checkin")
+        def _on_checkin(*_: Any) -> None:
+            DB_POOL_IN_USE.dec()
+
     return _engine
 
 

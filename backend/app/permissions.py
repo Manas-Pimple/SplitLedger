@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Annotated
 from uuid import UUID
 
+import structlog
 from fastapi import Depends, Header
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -89,6 +90,7 @@ async def current_principal(
     user = await session.get(User, user_id)
     if user is None or not user.is_active:
         raise ApiError(401, "UNAUTHENTICATED", "Account unavailable")
+    structlog.contextvars.bind_contextvars(user_id=str(user.id))
     return Principal(user_id=user.id, is_platform_admin=user.is_platform_admin)
 
 
@@ -113,6 +115,7 @@ def require(permission: Permission):  # type: ignore[no-untyped-def]
         principal: Annotated[Principal, Depends(current_principal)],
         session: Annotated[AsyncSession, Depends(get_session)],
     ) -> AuthContext:
+        structlog.contextvars.bind_contextvars(house_id=str(house_id))
         role = await resolve_role(session, principal.user_id, house_id)
         if role is None or permission not in POLICY[role]:
             raise ApiError(403, "PERMISSION_DENIED", f"Role does not allow {permission}")

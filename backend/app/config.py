@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6380/0"
     env: str = "development"
     jwt_secret: str = DEV_JWT_SECRET
+    metrics_port: int = 9100
 
     # R2 in production, MinIO locally — same S3-compatible API, config-only swap
     r2_endpoint_url: str = "http://localhost:9002"

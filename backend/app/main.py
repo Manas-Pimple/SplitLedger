@@ -16,6 +16,7 @@ from app.errors import install_error_handlers
 from app.expenses import router as expenses_router
 from app.houses import router as houses_router
 from app.idempotency import IdempotencyMiddleware
+from app.observability import RequestContextMiddleware, configure_logging, serve_metrics_server
 from app.outbox import relay_loop
 from app.recurring_bills import router as recurring_bills_router
 from app.redis import close_redis, get_redis
@@ -34,6 +35,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     background = [
         asyncio.create_task(relay_loop(get_session_factory(), get_redis(), stop)),
         asyncio.create_task(backplane_consumer(get_redis(), stop)),
+        asyncio.create_task(serve_metrics_server(settings.metrics_port)),
     ]
     yield
     stop.set()
@@ -45,9 +47,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
+    configure_logging()
     app = FastAPI(title="SplitLedger", lifespan=lifespan)
     install_error_handlers(app)
     app.add_middleware(IdempotencyMiddleware)
+    app.add_middleware(RequestContextMiddleware)
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(me_router, prefix="/api/v1")
     app.include_router(houses_router, prefix="/api/v1")
