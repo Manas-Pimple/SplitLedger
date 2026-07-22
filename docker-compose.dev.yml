@@ -27,5 +27,24 @@ services:
       timeout: 3s
       retries: 5
 
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: splitledger
+      MINIO_ROOT_PASSWORD: splitledger123
+    ports:
+      # host 9002/9003: 9000/9001 taken by other local docker containers
+      - "9002:9000"
+      - "9003:9001"
+    volumes:
+      - minio-dev-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
 volumes:
   pgdata-dev:
+  minio-dev-data:

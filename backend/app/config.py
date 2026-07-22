@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     env: str = "development"
     jwt_secret: str = DEV_JWT_SECRET
 
+    # R2 in production, MinIO locally — same S3-compatible API, config-only swap
+    r2_endpoint_url: str = "http://localhost:9002"
+    r2_access_key_id: str = "splitledger"
+    r2_secret_access_key: str = "splitledger123"
+    r2_bucket: str = "splitledger-dev"
+
 
 @lru_cache
 def get_settings() -> Settings:

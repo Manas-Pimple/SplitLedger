@@ -5,7 +5,7 @@ than real leader election.
 
 Each tick: acquire the lock (skip tick if held elsewhere) and run, in order:
 recurring bill generation, reminder tiers, idempotency-key sweep, orphan
-document sweep (stub — R2 delete arrives with Phase 10).
+document sweep (deletes stale pending rows and their R2 objects).
 """
 
 import asyncio
@@ -22,6 +22,7 @@ from app.ledger import create_expense
 from app.models import Balance, Document, House, IdempotencyKey, Notification, RecurringBill
 from app.models.document import DocumentStatus
 from app.models.recurring_bill import BillFrequency
+from app.storage import delete_object
 
 logger = logging.getLogger(__name__)
 
@@ -159,17 +160,22 @@ async def _sweep_idempotency_keys(factory: async_sessionmaker[AsyncSession]) -> 
 
 
 async def _sweep_orphan_documents(factory: async_sessionmaker[AsyncSession]) -> int:
-    """ponytail: DB-row cleanup only — R2 object deletion is a Phase 10 stub,
-    since no documents exist yet without the upload endpoints."""
+    """Deletes stale pending Document rows (never confirmed within 24h) and
+    their R2/MinIO objects, if any were actually uploaded."""
     async with factory() as session:
-        result = cast(
-            CursorResult[Any],
+        stale = (
             await session.execute(
-                delete(Document).where(
+                select(Document).where(
                     Document.status == DocumentStatus.pending,
                     Document.created_at < datetime.now(UTC) - ORPHAN_DOCUMENT_AGE,
                 )
-            ),
+            )
+        ).scalars().all()
+        for doc in stale:
+            await delete_object(doc.r2_key)  # best-effort; object may not exist
+        result = cast(
+            CursorResult[Any],
+            await session.execute(delete(Document).where(Document.id.in_(d.id for d in stale))),
         )
         await session.commit()
         return result.rowcount or 0

@@ -11,6 +11,7 @@ from app.auth import router as auth_router
 from app.config import DEV_JWT_SECRET, get_settings
 from app.db import dispose_engine, get_engine, get_session_factory
 from app.disputes import router as disputes_router
+from app.documents import router as documents_router
 from app.errors import install_error_handlers
 from app.expenses import router as expenses_router
 from app.houses import router as houses_router
@@ -53,6 +54,7 @@ def create_app() -> FastAPI:
     app.include_router(split_rules_router, prefix="/api/v1")
     app.include_router(expenses_router, prefix="/api/v1")
     app.include_router(disputes_router, prefix="/api/v1")
+    app.include_router(documents_router, prefix="/api/v1")
     app.include_router(recurring_bills_router, prefix="/api/v1")
     app.include_router(settlements_router, prefix="/api/v1")
     app.include_router(ws_router, prefix="/api/v1")
